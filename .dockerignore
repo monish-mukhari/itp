@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env
+.env.*
+!.env.example
+npm-debug.log*
+audio/*
+images/*
+slides/*
+videos/*
+public/final_lecture_video.mp4
+config/*.json
+*.pptx
+*.mp4

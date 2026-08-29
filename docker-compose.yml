@@ -1,0 +1,65 @@
+services:
+  mongo:
+    image: mongo:7.0
+    container_name: learnland-mongo
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--host", "localhost:27017", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  mongo-init:
+    image: mongo:7.0
+    restart: "no"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        mongosh --quiet --host mongo:27017 --eval '
+          try {
+            rs.status();
+          } catch (error) {
+            rs.initiate({ _id: "rs0", members: [{ _id: 0, host: "mongo:27017" }] });
+          }
+        '
+        until mongosh --quiet --host mongo:27017 --eval 'quit(db.hello().isWritablePrimary ? 0 : 1)'; do
+          sleep 1
+        done
+
+  app:
+    build:
+      context: .
+      target: development
+    container_name: learnland-app
+    restart: unless-stopped
+    depends_on:
+      mongo-init:
+        condition: service_completed_successfully
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: mongodb://mongo:27017/learnland?replicaSet=rs0
+      NEXTAUTH_URL: http://localhost:3000
+      PYTHON_BINARY: python3
+      WATCHPACK_POLLING: "true"
+      GOOGLE_APPLICATION_CREDENTIALS: /app/config/${GOOGLE_CREDENTIALS_FILENAME:-gen-lang-client-0477875204-e65221dfbc8b.json}
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - frontend-node-modules:/app/node_modules
+      - next-cache:/app/.next
+
+volumes:
+  mongo-data:
+  frontend-node-modules:
+  next-cache:
