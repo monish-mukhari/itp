@@ -52,7 +52,13 @@ export async function fetchCorrectImage(query: string): Promise<string | null> {
       return response.data.items[0].link; // First image result
     }
   } catch (error) {
-    console.error(`Error fetching image for ${query}:`, error);
+    if (axios.isAxiosError(error)) {
+      const status = error.response?.status;
+      const message = error.response?.data?.error?.message || error.message;
+      console.error(`Image search failed for "${query}"${status ? ` (${status})` : ""}: ${message}`);
+    } else {
+      console.error(`Image search failed for "${query}": ${String(error)}`);
+    }
   }
 
   return null; // Default to null if no image is found

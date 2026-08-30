@@ -3,7 +3,9 @@
 FROM node:20-bookworm-slim AS dependencies
 
 ENV NEXT_TELEMETRY_DISABLED=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    PIPER_DATA_DIR=/opt/piper-voices \
+    PIPER_MODEL=en_US-lessac-medium
 
 WORKDIR /app
 
@@ -28,6 +30,8 @@ COPY requirements.txt ./
 RUN npm ci
 RUN npx prisma generate
 RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
+RUN mkdir -p "$PIPER_DATA_DIR" \
+    && python3 -m piper.download_voices --data-dir "$PIPER_DATA_DIR" "$PIPER_MODEL"
 
 FROM dependencies AS development
 

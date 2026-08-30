@@ -10,6 +10,7 @@ type GeminiApiResponse = {
 
 export async function POST(request: NextRequest) {
   const { input } = await request.json();
+  const model = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
 
   if (typeof input !== "string" || !input.trim()) {
     return NextResponse.json({ reply: "Input is required." }, { status: 400 });
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },

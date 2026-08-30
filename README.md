@@ -3,7 +3,7 @@
 LearnLand turns a topic into AI-generated exam notes and a narrated lecture
 video. The Next.js application searches YouTube and Wikipedia, asks Gemini for
 structured lecture content, renders slides with Canvas, narrates them with
-Google Cloud Text-to-Speech, and joins the clips with FFmpeg.
+the local Piper neural text-to-speech engine, and joins the clips with FFmpeg.
 
 ## Docker development setup
 
@@ -14,7 +14,8 @@ do not need to install those tools directly on Windows or macOS.
 Prerequisites:
 
 - Docker Desktop (or Docker Engine with Compose v2)
-- Gemini, YouTube Data API, Google Custom Search, and Google Cloud credentials
+- Gemini and YouTube Data API keys
+- Google Custom Search credentials only if your project already has API access
 
 Create local configuration:
 
@@ -28,9 +29,9 @@ Fill in the API keys in `.env`. Generate a NextAuth secret, for example:
 openssl rand -base64 32
 ```
 
-Place the Google Cloud service-account JSON in `config/` and set
-`GOOGLE_CREDENTIALS_FILENAME` in `.env` to that file's name. JSON credentials
-are excluded from both Git and the Docker build context.
+Narration runs locally and does not require a Google Cloud account or billing.
+The Docker build installs Piper and downloads the `en_US-lessac-medium` voice
+once into the image.
 
 Build and start all services:
 
@@ -75,7 +76,8 @@ clean reset is intended.
 ## Services
 
 - `app`: Next.js 14 development server on port 3000. Its image uses Node 20 and
-  includes Canvas build libraries, Python dependencies, and FFmpeg.
+  includes Canvas build libraries, Python dependencies, Piper, its bundled
+  English voice model, and FFmpeg.
 - `mongo`: MongoDB 7 on port 27017 with a persistent named volume.
 - `mongo-init`: One-shot helper that initializes the `rs0` replica set required
   by Prisma and waits until MongoDB has elected a writable primary.
@@ -87,8 +89,8 @@ host-oriented value in `.env`.
 ## Non-Docker installation
 
 Node 20 is recommended. `canvas@2.11.2` may require a native compiler and Cairo
-libraries, and the media pipeline additionally requires Python and FFmpeg. On
-Windows this usually means Visual Studio Build Tools with the Desktop
+libraries, and the media pipeline additionally requires Python, Piper, a Piper
+voice model, and FFmpeg. On Windows this usually means Visual Studio Build Tools with the Desktop
 development with C++ workload. Docker avoids that host-specific setup.
 
 The repository enables npm's legacy peer-dependency resolver because the
@@ -99,5 +101,8 @@ removing `.npmrc`.
 ```powershell
 npm ci
 npx prisma generate
+pip install -r requirements.txt
+python -m piper.download_voices --data-dir config/piper en_US-lessac-medium
+$env:PIPER_DATA_DIR = "config/piper"
 npm run dev
 ```
