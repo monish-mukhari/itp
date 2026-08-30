@@ -6,8 +6,8 @@ export default async function generateslideHandler(query: string) {
   const { data } = await aggregateHandler(query);
 
   try {
-    console.log("gemini api key",process.env.GEMINI_API_KEY);
-    const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`;
+    const model = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
+    const geminiApiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GEMINI_API_KEY}`;
 
 
     const response = await axios.post(

@@ -3,13 +3,11 @@ import aggregateHandler from "../aggregateResearch";
 import generateHandler from "../streamline/generateslide";
 
 import { createCanvas, loadImage } from 'canvas';
+import { spawn } from 'child_process';
 import fs from 'fs';
 import ffmpeg from 'fluent-ffmpeg';
-import textToSpeech from '@google-cloud/text-to-speech';
 import path from "path";
 import { fetchCorrectImage } from "../searchImage";
-import { TextToSpeechClient } from "@google-cloud/text-to-speech";
-import { protos } from "@google-cloud/text-to-speech";
 import { promisify } from 'util';
 
 async function isImageValid(url: string): Promise<boolean> {
@@ -151,29 +149,55 @@ async function createSlide(slide: any, slideNum: number) {
 }
 
 
-// Uses Google Application Default Credentials. In Docker, Compose points this
-// at the service-account file mounted read-only from ./config.
-const client = new textToSpeech.TextToSpeechClient();
+async function createAudio(slide: Slide, slideNum: number) {
+    const pythonBinary = process.env.PYTHON_BINARY || (process.platform === "win32" ? "python" : "python3");
+    const model = process.env.PIPER_MODEL || "en_US-lessac-medium";
+    const dataDir = process.env.PIPER_DATA_DIR || "/opt/piper-voices";
+    const audioPath = `./audio/audio_${slideNum}.wav`;
+    const narration = slide.speaker_notes?.trim();
 
-async function createAudio(slide: any, slideNum: any) {
-    const request: protos.google.cloud.texttospeech.v1.ISynthesizeSpeechRequest = {
-        input: { text: slide.speaker_notes },
-        voice: { 
-            languageCode: "en-US", 
-            ssmlGender: protos.google.cloud.texttospeech.v1.SsmlVoiceGender.NEUTRAL // ✅ Correct usage
-        },
-        audioConfig: { audioEncoding: "MP3" },
-    };
-
-    const [response] = await client.synthesizeSpeech(request);
-    const audioPath = `./audio/audio_${slideNum}.mp3`;
-
-    if (response.audioContent) {
-        fs.writeFileSync(audioPath, response.audioContent, "binary");
-        return audioPath;
-    } else {
-        throw new Error("Failed to generate audio.");
+    if (!narration) {
+        throw new Error(`Slide ${slideNum + 1} has no speaker notes to narrate.`);
     }
+
+    await new Promise<void>((resolve, reject) => {
+        const piper = spawn(
+            pythonBinary,
+            [
+                "-m",
+                "piper",
+                "--model",
+                model,
+                "--data-dir",
+                dataDir,
+                "--output-file",
+                audioPath,
+                "--",
+                narration,
+            ],
+            { stdio: ["ignore", "ignore", "pipe"] },
+        );
+
+        let stderr = "";
+        piper.stderr.on("data", (data) => {
+            stderr += data.toString();
+        });
+        piper.once("error", reject);
+        piper.once("close", (code) => {
+            if (code === 0) {
+                resolve();
+                return;
+            }
+
+            reject(new Error(`Piper exited with code ${code}: ${stderr.trim() || "unknown error"}`));
+        });
+    });
+
+    if (!fs.existsSync(audioPath) || fs.statSync(audioPath).size === 0) {
+        throw new Error(`Piper did not create audio for slide ${slideNum + 1}.`);
+    }
+
+    return audioPath;
 }
 
 async function getAudioDuration(audioFile: any) {

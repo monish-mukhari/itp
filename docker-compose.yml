@@ -50,8 +50,9 @@ services:
       DATABASE_URL: mongodb://mongo:27017/learnland?replicaSet=rs0
       NEXTAUTH_URL: http://localhost:3000
       PYTHON_BINARY: python3
+      PIPER_DATA_DIR: /opt/piper-voices
+      PIPER_MODEL: ${PIPER_MODEL:-en_US-lessac-medium}
       WATCHPACK_POLLING: "true"
-      GOOGLE_APPLICATION_CREDENTIALS: /app/config/${GOOGLE_CREDENTIALS_FILENAME:-gen-lang-client-0477875204-e65221dfbc8b.json}
     ports:
       - "3000:3000"
     volumes:

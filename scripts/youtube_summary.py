@@ -9,11 +9,11 @@ def get_transcript(video_id):
         formatter = TextFormatter()
         text_transcript = formatter.format_transcript(transcript)
         return text_transcript
-    except Exception as e:
-        error_message = str(e)
-        if "No transcripts were found" in error_message:
-            return "Summary not available"
-        return f"Error: {error_message}"
+    except Exception:
+        # Search results often contain videos with captions disabled or no
+        # transcript. Treat those as missing research data instead of feeding
+        # a verbose exception into the Gemini prompt.
+        return "Summary not available"
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

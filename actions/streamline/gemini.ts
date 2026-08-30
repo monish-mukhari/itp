@@ -6,9 +6,10 @@ import {
 
 const apiKey = process.env.GEMINI_API_KEY ?? "";
 const genAI = new GoogleGenerativeAI(apiKey);
+const modelName = process.env.GEMINI_MODEL ?? "gemini-3.6-flash";
 
 const model = genAI.getGenerativeModel({
-    model: "gemini-2.0-flash",
+    model: modelName,
 });
 
 const generationConfig = {
@@ -28,19 +29,23 @@ async function run(prompt: string, retries = 3, delay = 2000) {
             ],
     });
 
+    let lastError: unknown;
+
     for(let i = 0; i < retries; i++) {
         try {
             const result = await chatSession.sendMessage(prompt);
             console.log(result.response.text());
             return result.response.text();
         } catch (error) {
+            lastError = error;
             console.error(`Attempt ${i + 1} failed: ${error}`);
             if (i < retries - 1) await new Promise(res => setTimeout(res, delay));
         }
     }
 
-    
-    
+    throw lastError instanceof Error
+        ? lastError
+        : new Error(`Gemini generation failed after ${retries} attempts.`);
 }
 
 export default run;
